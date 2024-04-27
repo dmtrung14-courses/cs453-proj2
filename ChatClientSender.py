@@ -5,15 +5,30 @@ import sys
 
 class ChatClientSender:
     def __init__(self, server_address, server_port):
+        # variables
         self.server_address = server_address
         self.server_port = server_port
-        # Hardcoded sender name
         self.sender_name = "Superman"  
+        self.receiver_name = "Batwoman"
         self.sequence_number = 0
+
+
+        # socket
         self.sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         self.sock.sendto(f"NAME {self.sender_name}".encode(), (self.server_address, self.server_port))
         response, _ = self.sock.recvfrom(1024)
         print(response.decode())
+    
+    def identify(self):
+        self.sock.sendto(f"NAME {self.sender_name}".encode(), (self.server_address, self.server_port))
+        response, _ = self.sock.recvfrom(1024)
+        return response.decode()
+
+    def relay(self):
+        self.sock.sendto(f"CONN {self.receiver_name}".encode(), (self.server_address, self.server_port))
+        response, _ = self.sock.recvfrom(1024)
+        return response.decode()
+
 
     def calculate_checksum(self, data):
         return hashlib.md5(data.encode()).hexdigest()
@@ -23,32 +38,33 @@ class ChatClientSender:
 
     def send_data(self, data, receive_filename):
         checksum = self.calculate_checksum(data)
-        segment = f"{self.sequence_number}:{checksum}:{data}:{receive_filename}"  
+        segment = f"SEQ_NUM:{self.sequence_number}\nCHECKSUM:{checksum}\nRECV_FILE:{receive_filename}\nBYTES:2000\n\n{data}"  
         self.send_segment(segment)
-        while True:
-            try:
-                # Set timeout for ACKs
-                self.sock.settimeout(5)  
-                ack, _ = self.sock.recvfrom(1024)
-                ack = ack.decode('latin1')
-                ack_sequence_number = int(ack.split(':')[0])
-                if ack_sequence_number == self.sequence_number:
-                    print("ACK received for segment:", self.sequence_number)
-                    self.sequence_number = 1 - self.sequence_number 
-                    break
-            except socket.timeout:
-                print("Timeout, retransmitting segment:", self.sequence_number)
-                self.send_segment(segment)
 
     def send_file(self, filename, receive_filename):
         with open(filename, 'r') as file:
-            with open(receive_filename, 'w') as receive_file:  
-                for line in file:
-                    receive_file.write(line.strip() + '\n')  
-                    self.send_data(line.strip(), receive_filename)  
-                    print(len(line.strip()))
-                    # Delay between sending segments
-                    time.sleep(0.5)  
+            data = file.read()
+        binary_data = data.encode()
+        chunk_size = 2000 - len(f"SEQ_NUM:{self.sequence_number}\nCHECKSUM:{self.calculate_checksum('')}\nRECV_FILE:{receive_filename}\nBYTES:2000\n\n".encode())
+        chunks = [binary_data[i:i+chunk_size] for i in range(0, len(binary_data), chunk_size)]
+        for chunk in chunks:
+            self.send_data(chunk.decode(), receive_filename)
+            while True:
+                try:
+                    self.sock.settimeout(1)
+                    ack, _ = self.sock.recvfrom(1024)
+                    if len(ack) == 0:
+                        break
+                    ack = ack.decode()
+                    ack_sequence_number = int(ack.split(':')[1])
+                    if ack_sequence_number == 1 - self.sequence_number:
+                        print("ACK received for segment:", self.sequence_number)
+                        self.sequence_number = 1 - self.sequence_number 
+                        break
+                except socket.timeout:
+                    print("Timeout, retransmitting segment:", self.sequence_number)
+                    self.send_data(chunk.decode(), receive_filename)
+
         print("File transmission complete.")
 
     def close_connection(self):
@@ -65,6 +81,8 @@ def main():
     port_number = int(sys.argv[4])
     server_name = sys.argv[2]
     sender = ChatClientSender(server_name, port_number)
+    sender.identify()
+    sender.relay()
     if len(sys.argv) == 5:
         send_file = sys.stdin
         receive_file = sys.stdout
@@ -84,3 +102,6 @@ def main():
 
 if __name__ == "__main__":
     main()
+
+    # command for copy and paste:
+    # python ChatClientSender.py -s date.cs.umass.edu -p 8888 -t file1.txt recv_file1.txt

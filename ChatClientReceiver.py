@@ -5,63 +5,76 @@ import sys
 
 class ChatClientReceiver:
     def __init__(self, server_address, server_port):
+        # variables
         self.server_address = server_address
         self.server_port = server_port
-        # Hardcoded sender name
-        self.sender_name = "Batwoman"  
+        self.sender_name = "Batwoman"
+        self.receiver_name = "Superman"
         self.sequence_number = 0
+        self.receive_file = NotImplemented
+
+
+        # socket
         self.sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         self.sock.sendto(f"NAME {self.sender_name}".encode(), (self.server_address, self.server_port))
-        response, _ = self.sock.recvfrom(1024)
+        response, _ = self.sock.recvfrom(2048)
         print(response.decode())
+
+    def identify(self):
+        self.sock.sendto(f"NAME {self.sender_name}".encode(), (self.server_address, self.server_port))
+        response, _ = self.sock.recvfrom(1024)
+        return response.decode()
+
+    def relay(self):
+        self.sock.sendto(f"CONN {self.receiver_name}".encode(), (self.server_address, self.server_port))
+        response, _ = self.sock.recvfrom(1024)
+        return response.decode()
 
     def calculate_checksum(self, data):
         return hashlib.md5(data.encode()).hexdigest()
 
+    def receive_data(self):
+        response = b""
+        while True:
+            try:
+                segment, _ = self.sock.recvfrom(2048)
+                response += segment
+            except socket.timeout:
+                break
+        # TODO: handle parsing response
+        header_sep = response.index(b"\n\n")
+        header = response[:header_sep].decode()
+        
+        seq_num = header.split("\n")[0].split(":")[1]
+        checksum = header.split("\n")[1].split(":")[1]
+        receive_file = header.split("\n")[2].split(":")[1]
+        
+        data = response[header_sep+2:].decode()
+
+        if seq_num != self.sequence_number or checksum != self.calculate_checksum(data):
+            self.send_ack()
+            return
+        self.sequence_number = 1 - self.sequence_number
+        if receive_file == sys.stdout:
+            print(data)
+            return
+        with open(receive_file, 'a') as receive_file:
+            receive_file.write(data)
+        self.send_ack()
+
+    def receive_file(self):
+        while True:
+            try:
+                self.receive_data()
+                self.sock.settimeout(1)
+            except socket.timeout:
+                break
     def send_segment(self, segment):
         self.sock.sendto(segment.encode(), (self.server_address, self.server_port))
 
-    def send_data(self, data, receive_filename):
-        checksum = self.calculate_checksum(data)
-        segment = f"{self.sequence_number}:{checksum}:{data}:{receive_filename}"  
+    def send_ack(self):
+        segment = f"ACK:{self.sequence_number}"
         self.send_segment(segment)
-        while True:
-            try:
-                # Set timeout for ACKs
-                self.sock.settimeout(5)  
-                ack, _ = self.sock.recvfrom(1024)
-                if len(ack) == 0:
-                    break
-                ack = ack.decode()
-                ack_sequence_number = int(ack.split(':')[0])
-                if ack_sequence_number == self.sequence_number:
-                    print("ACK received for segment:", self.sequence_number)
-                    self.sequence_number = 1 - self.sequence_number 
-                    break
-            except socket.timeout:
-                print("Timeout, retransmitting segment:", self.sequence_number)
-                self.send_segment(segment)
-
-    def send_file(self, filename, receive_filename):
-        if type(filename) != str or type(receive_filename) != str:
-            for line in filename:
-                if line.strip() == "QUIT":
-                    self.close_connection()
-                    sys.exit(1)
-                else:
-                    receive_filename.write(line.strip() + '\n')
-                    self.send_data(line.strip(), receive_filename)
-                time.sleep(0.5)
-        else:
-            with open(filename, 'r') as file:
-                with open(receive_filename, 'w') as receive_file:  
-                    for line in file:
-                        receive_file.write(line.strip() + '\n')  
-                        self.send_data(line.strip(), receive_filename)  
-                        print(len(line.strip()))
-                        # Delay between sending segments
-                        time.sleep(0.5)  
-        print("File transmission complete.")
 
     def close_connection(self):
         self.sock.sendto("QUIT".encode(), (self.server_address, self.server_port))
@@ -77,22 +90,12 @@ def main():
     port_number = int(sys.argv[4])
     server_name = sys.argv[2]
     sender = ChatClientReceiver(server_name, port_number)
-    if len(sys.argv) == 5:
-        send_file = sys.stdin
-        receive_file = sys.stdout
-        for line in send_file:
-            if line.strip() == "QUIT":
-                sender.close_connection()
-                break
-            else:
-                receive_file.write(line.strip() + '\n')
-                sender.send_data(line.strip(), receive_file)
-                time.sleep(0.5)
-    else:
-        send_file = sys.argv[6]
-        receive_file = sys.argv[7]
-        sender.send_file(send_file, receive_file)
-        sender.close_connection()
+    sender.identify()
+    sender.relay()
+    
+    # TODO: something is wrong here
+    sender.receive_data()
+    sender.close_connection()
 
 if __name__ == "__main__":
     main()
