@@ -11,24 +11,18 @@ class ChatClientReceiver:
         self.sender_name = "Batwoman"
         self.receiver_name = "Superman"
         self.sequence_number = 0
-        self.receive_file = NotImplemented
-
-
         # socket
         self.sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-        self.sock.sendto(f"NAME {self.sender_name}".encode(), (self.server_address, self.server_port))
-        response, _ = self.sock.recvfrom(2048)
-        print(response.decode())
 
     def identify(self):
         self.sock.sendto(f"NAME {self.sender_name}".encode(), (self.server_address, self.server_port))
         response, _ = self.sock.recvfrom(1024)
-        return response.decode()
+        print(response.decode())
 
     def relay(self):
         self.sock.sendto(f"CONN {self.receiver_name}".encode(), (self.server_address, self.server_port))
         response, _ = self.sock.recvfrom(1024)
-        return response.decode()
+        print(response.decode())
 
     def calculate_checksum(self, data):
         return hashlib.md5(data.encode()).hexdigest()
@@ -39,6 +33,7 @@ class ChatClientReceiver:
             try:
                 segment, _ = self.sock.recvfrom(2048)
                 response += segment
+                self.sock.settimeout(1)
             except socket.timeout:
                 break
         # TODO: handle parsing response
@@ -66,7 +61,7 @@ class ChatClientReceiver:
         while True:
             try:
                 self.receive_data()
-                self.sock.settimeout(1)
+                self.sock.settimeout(5)
             except socket.timeout:
                 break
     def send_segment(self, segment):
@@ -77,9 +72,9 @@ class ChatClientReceiver:
         self.send_segment(segment)
 
     def close_connection(self):
-        self.sock.sendto("QUIT".encode(), (self.server_address, self.server_port))
-        response, _ = self.sock.recvfrom(1024)
-        print(response.decode())
+        # self.sock.sendto("QUIT".encode(), (self.server_address, self.server_port))
+        # response, _ = self.sock.recvfrom(1024)
+        # print(response.decode())
         self.sock.close()
 
 def main():
@@ -94,8 +89,11 @@ def main():
     sender.relay()
     
     # TODO: something is wrong here
-    sender.receive_data()
+    sender.receive_file()
     sender.close_connection()
 
 if __name__ == "__main__":
     main()
+
+    # command for copy and paste
+    # python ChatClientReceiver.py -s date.cs.umass.edu -p 8888

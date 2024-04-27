@@ -15,19 +15,17 @@ class ChatClientSender:
 
         # socket
         self.sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-        self.sock.sendto(f"NAME {self.sender_name}".encode(), (self.server_address, self.server_port))
-        response, _ = self.sock.recvfrom(1024)
-        print(response.decode())
     
     def identify(self):
         self.sock.sendto(f"NAME {self.sender_name}".encode(), (self.server_address, self.server_port))
         response, _ = self.sock.recvfrom(1024)
-        return response.decode()
+        print(response.decode())
+
 
     def relay(self):
         self.sock.sendto(f"CONN {self.receiver_name}".encode(), (self.server_address, self.server_port))
         response, _ = self.sock.recvfrom(1024)
-        return response.decode()
+        print(response.decode())
 
 
     def calculate_checksum(self, data):
@@ -51,7 +49,7 @@ class ChatClientSender:
             self.send_data(chunk.decode(), receive_filename)
             while True:
                 try:
-                    self.sock.settimeout(1)
+                    self.sock.settimeout(3)
                     ack, _ = self.sock.recvfrom(1024)
                     if len(ack) == 0:
                         break
@@ -68,10 +66,10 @@ class ChatClientSender:
         print("File transmission complete.")
 
     def close_connection(self):
-        self.sock.sendto("QUIT".encode(), (self.server_address, self.server_port))
-        response, _ = self.sock.recvfrom(1024)
+        # self.sock.sendto("QUIT".encode(), (self.server_address, self.server_port))
+        # response, _ = self.sock.recvfrom(1024)
         self.sock.close()
-        print(response.decode())
+        # print(response.decode())
 
 def main():
     if len(sys.argv) < 5:
