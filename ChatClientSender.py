@@ -31,6 +31,17 @@ class ChatClientSender:
     def calculate_checksum(self, data):
         return hashlib.md5(data.encode()).hexdigest()
 
+    def chunk_data(self, data, receive_filename):
+        chunks = []
+        counter = 0
+        while counter < len(data) - 1:
+            chunk = data[counter]
+            while len(chunk.encode()) < 2000 - len(f"SEQ_NUM:{self.sequence_number}\nCHECKSUM:{self.calculate_checksum(chunk)}\nRECV_FILE:{receive_filename}\nBYTES:2000\n\n".encode()) and counter < len(data) - 1:
+                counter += 1
+                chunk += data[counter]
+            chunks.append(chunk)
+        return chunks
+
     def send_segment(self, segment, encoded = False):
         if encoded:
             self.sock.sendto(segment, (self.server_address, self.server_port))
@@ -45,16 +56,12 @@ class ChatClientSender:
     def send_file(self, filename, receive_filename):
         with open(filename, 'r') as file:
             data = file.read()
-        counter = 0
-        while counter < len(data) - 1:
-            chunk = data[counter]
-            while len(chunk.encode()) < 2000 - len(f"SEQ_NUM:{self.sequence_number}\nCHECKSUM:{self.calculate_checksum(chunk)}\nRECV_FILE:{receive_filename}\nBYTES:2000\n\n".encode()) and counter < len(data) - 1:
-                counter += 1
-                chunk += data[counter]
+        chunks = self.chunk_data(data, receive_filename)
+        for chunk in chunks:
             self.send_data(chunk, receive_filename)
             while True:
                 try:
-                    self.sock.settimeout(3)
+                    self.sock.settimeout(2)
                     ack, _ = self.sock.recvfrom(1024)
                     if len(ack) == 0:
                         continue
@@ -70,12 +77,9 @@ class ChatClientSender:
                 except socket.timeout:
                     print("Timeout, retransmitting segment:", self.sequence_number)
                     self.send_data(chunk, receive_filename)
-                except (UnicodeDecodeError, ValueError):
-                    print("Corrupted ACK received. Retransmitting segment:", self.sequence_number)
-                    self.send_data(chunk, receive_filename)
-                except IndexError:
-                    print("Index out of bounds. Retransmitting segment:", self.sequence_number)
-                    self.send_data(chunk, receive_filename)
+                # except (UnicodeDecodeError, ValueError, IndexError):
+                #     print("Corrupted ACK received. Retransmitting segment:", self.sequence_number)
+                #     self.send_data(chunk, receive_filename)
 
         print("File transmission complete.")
 
@@ -88,6 +92,8 @@ def main():
     if len(sys.argv) < 5:
         print("Usage: python ChatClientSender.py -s server_name -p port_number -t send_file receive_file")
         sys.exit(1)
+
+    start_time = time.time()
     
     port_number = int(sys.argv[4])
     server_name = sys.argv[2]
@@ -110,7 +116,9 @@ def main():
         receive_file = sys.argv[7]
         sender.send_file(send_file, receive_file)
         sender.close_connection()
-
+    end_time = time.time()
+    run_time = end_time - start_time
+    print("Transmitted the file in: ", run_time, "s")
 if __name__ == "__main__":
     main()
 

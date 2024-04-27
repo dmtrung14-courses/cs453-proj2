@@ -11,7 +11,7 @@ class ChatClientReceiver:
         self.sender_name = "Batwoman"
         self.receiver_name = "Superman"
         self.sequence_number = 0
-        self.verbose = False
+        self.verbose = True
         # socket
         self.sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
 
@@ -37,6 +37,8 @@ class ChatClientReceiver:
         while True:
             try:
                 segment, _ = self.sock.recvfrom(2048)
+                if len(segment) == 0:
+                    continue
                 header_sep = segment.index(b"\n\n")
                 # handle quit:
                 if not header:
@@ -44,6 +46,7 @@ class ChatClientReceiver:
                     seq_num = int(header.split("\n")[0].split(":")[1])
                     if seq_num == -1:
                         if self.verbose: print("Server has closed the connection")
+                        self.sock.sendto(b"ACK:-1", (self.server_address, self.server_port))
                         return -1
                     checksum = header.split("\n")[1].split(":")[1]
                     receive_file = header.split("\n")[2].split(":")[1]
@@ -51,10 +54,10 @@ class ChatClientReceiver:
                 self.sock.settimeout(1)
             except socket.timeout:
                 break
-            except (UnicodeDecodeError, ValueError):
-            # possibly corrupted, so we drop the file and request retransmission
-                self.send_ack()
-                return 0
+            # except (UnicodeDecodeError, ValueError, IndexError):
+            # # possibly corrupted, so we drop the file and request retransmission
+            #     self.send_ack()
+            #     return 0
             
         # TODO: handle parsing response
         try:
@@ -90,7 +93,7 @@ class ChatClientReceiver:
                 a = self.receive_data()
                 if a == -1:
                     break
-                self.sock.settimeout(3)
+                self.sock.settimeout(1)
             except socket.timeout:
                 break
     def send_segment(self, segment):
