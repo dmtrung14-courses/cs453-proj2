@@ -54,11 +54,14 @@ class ChatClientReceiver:
         # TODO: handle parsing response
         data = response.decode()
 
+        if len(data) == 0:
+            return
+
         if seq_num != self.sequence_number or checksum != self.calculate_checksum(data):
-            # if the data is corrupt or resend, then ack the previous segment
-            print("Got here, some error found!")
+            print("Either sequence number or checksum is incorrect. Ignoring the segment.")
             self.send_ack()
             return
+        
         self.sequence_number = 1 - self.sequence_number
         if receive_file == sys.stdout:
             print(data)
