@@ -60,6 +60,9 @@ class ChatClientSender:
                         print("ACK received for segment:", self.sequence_number)
                         self.sequence_number = 1 - self.sequence_number 
                         break
+                    else:
+                        print("Wrong ACK received. Retransmitting segment:", self.sequence_number)
+                        self.send_data(chunk.decode(), receive_filename)
                 except socket.timeout:
                     print("Timeout, retransmitting segment:", self.sequence_number)
                     self.send_data(chunk.decode(), receive_filename)
@@ -104,3 +107,4 @@ if __name__ == "__main__":
 
     # command for copy and paste:
     # python ChatClientSender.py -s date.cs.umass.edu -p 8888 -t file1.txt recv_file1.txt
+    # python ChatClientSender.py -s date.cs.umass.edu -p 8888 -t file2.txt recv_file2.txt

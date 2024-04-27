@@ -62,3 +62,55 @@ Four score and seven years ago...
 ...
 The end.
 Did you get it okay?
+SEQ_NUM:0
+CHECKSUM:107e152cb196926676d15f7a61217101
+RECV_FILE:recv_file2.txt
+BYTES:2000
+
+1.  Introduction
+
+   The Transmission Control Protocol (TCP) [Pos81] uses a retransmission
+   timer to ensure data delivery in the absence of any feedback from the
+   remote data receiver.  The duration of this timer is referred to as
+   RTO (retransmission timeout).  RFC 1122 [Bra89] specifies that the
+   RTO should be calculated as outlined in [Jac88].
+
+   This document codifies the algorithm for setting the RTO.  In
+   addition, this document expands on the discussion in Section 4.2.3.1
+   of RFC 1122 and upgrades the requirement of supporting the algorithm
+   from a SHOULD to a MUST.  RFC 5681 [APB09] outlines the algorithm TCP
+   uses to begin sending after the RTO expires and a retransmission is
+   sent.  This document does not alter the behavior outlined in RFC 5681
+   [APB09].
+
+   In some situations, it may be beneficial for a TCP sender to be more
+   conservative than the algorithms detailed in this document allow.
+   However, a TCP MUST NOT be more aggressive than the following
+   algorithms allow.  This document obsoletes RFC 2988 [PA00].
+
+   The key words "MUST", "MUST NOT", "REQUIRED", "SHALL", "SHALL NOT",
+   "SHOULD", "SHOULD NOT", "RECOMMENDED", "MAY", and "OPTIONAL" in this
+   document are to be interpreted as described in [Bra97].
+
+2.  The Basic Algorithm
+
+   To compute the current RTO, a TCP sender maintains two state
+   variables, SRTT (smoothed round-trip time) and RTTVAR (round-trip
+   time variation).  In addition, we assume a clock granularity of G
+   seconds.
+
+
+
+
+
+Paxson, et al.               Standards Track                    [Page 2]
+
+RFC 6298          Computing TCP's Retransmission Timer         June 2011
+
+
+   The rules governing the computation of SRTT, RTTVAR, and RTO are as
+   follows:
+
+   (2.1) Until a round-trip time (RTT) measurement has been made for a
+         segment sent between the sender and receiver, the sender SHOULD
+         set RTO <- 
