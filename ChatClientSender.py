@@ -70,11 +70,9 @@ class ChatClientSender:
         print("File transmission complete.")
 
     def close_connection(self):
-        segment = f"SEG_NUM:{-1}\n\n"
-        self.sock.sendto(segment.encode(), (self.server_address, self.server_port))
-        response, _ = self.sock.recvfrom(1024)
+        segment = f"SEQ_NUM:{-1}\n\n"
+        self.send_segment(segment)
         self.sock.close()
-        # print(response.decode())
 
 def main():
     if len(sys.argv) < 5:
