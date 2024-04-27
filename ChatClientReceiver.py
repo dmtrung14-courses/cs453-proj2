@@ -11,18 +11,19 @@ class ChatClientReceiver:
         self.sender_name = "Batwoman"
         self.receiver_name = "Superman"
         self.sequence_number = 0
+        self.verbose = False
         # socket
         self.sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
 
     def identify(self):
         self.sock.sendto(f"NAME {self.sender_name}".encode(), (self.server_address, self.server_port))
         response, _ = self.sock.recvfrom(1024)
-        print(response.decode())
+        if self.verbose: print(response.decode())
 
     def relay(self):
         self.sock.sendto(f"CONN {self.receiver_name}".encode(), (self.server_address, self.server_port))
         response, _ = self.sock.recvfrom(1024)
-        print(response.decode())
+        if self.verbose: print(response.decode())
 
     def calculate_checksum(self, data):
         return hashlib.md5(data.encode()).hexdigest()
@@ -41,9 +42,8 @@ class ChatClientReceiver:
                 if not header:
                     header = segment[:header_sep].decode()
                     seq_num = int(header.split("\n")[0].split(":")[1])
-                    # print(seq_num)
                     if seq_num == -1:
-                        print("Server has closed the connection")
+                        if self.verbose: print("Server has closed the connection")
                         return -1
                     checksum = header.split("\n")[1].split(":")[1]
                     receive_file = header.split("\n")[2].split(":")[1]
@@ -66,9 +66,9 @@ class ChatClientReceiver:
             return 0
 
         if seq_num != self.sequence_number or checksum != self.calculate_checksum(data):
-            if seq_num != self.sequence_number:
+            if seq_num != self.sequence_number and self.verbose:
                 print(f"Expected sequence number: {self.sequence_number}, received: {seq_num}")
-            if checksum != self.calculate_checksum(data):
+            if checksum != self.calculate_checksum(data) and self.verbose:
                 print(f"Expected checksum: {self.calculate_checksum(data)}, received: {checksum}")
             self.send_ack()
             return 0 
@@ -76,9 +76,10 @@ class ChatClientReceiver:
         self.sequence_number = 1 - self.sequence_number
         if receive_file == sys.stdout:
             print(data)
-            return 0
-        with open(receive_file, 'a') as file:
-            file.write(data)
+            return
+        else:
+            with open(receive_file, 'a') as file:
+                file.write(data)
         self.send_ack()
         return 0
     
@@ -99,9 +100,6 @@ class ChatClientReceiver:
         self.send_segment(segment)
 
     def close_connection(self):
-        # self.sock.sendto("QUIT".encode(), (self.server_address, self.server_port))
-        # response, _ = self.sock.recvfrom(1024)
-        # print(response.decode())
         self.sock.close()
 
 def main():

@@ -31,29 +31,30 @@ class ChatClientSender:
     def calculate_checksum(self, data):
         return hashlib.md5(data.encode()).hexdigest()
 
-    def send_segment(self, segment):
-        self.sock.sendto(segment.encode(), (self.server_address, self.server_port))
+    def send_segment(self, segment, encoded = False):
+        if encoded:
+            self.sock.sendto(segment, (self.server_address, self.server_port))
+        else:
+            self.sock.sendto(segment.encode(), (self.server_address, self.server_port))
 
     def send_data(self, data, receive_filename):
         checksum = self.calculate_checksum(data)
-        print(type(checksum))
         segment = f"SEQ_NUM:{self.sequence_number}\nCHECKSUM:{checksum}\nRECV_FILE:{receive_filename}\nBYTES:2000\n\n{data}"  
         self.send_segment(segment)
 
     def send_file(self, filename, receive_filename):
         with open(filename, 'r') as file:
             data = file.read()
-        binary_data = data.encode()
-        chunk_size = 2000 - len(f"SEQ_NUM:{self.sequence_number}\nCHECKSUM:{self.calculate_checksum('')}\nRECV_FILE:{receive_filename}\nBYTES:2000\n\n".encode())
-        chunks = [binary_data[i:i+chunk_size] for i in range(0, len(binary_data), chunk_size)]
+        chunk_size = 500
+        chunks = [data[i:i+chunk_size] for i in range(0, len(data), chunk_size)]
         for chunk in chunks:
-            self.send_data(chunk.decode(), receive_filename)
+            self.send_data(chunk, receive_filename)
             while True:
                 try:
                     self.sock.settimeout(3)
                     ack, _ = self.sock.recvfrom(1024)
                     if len(ack) == 0:
-                        break
+                        continue
                     ack = ack.decode()
                     ack_sequence_number = int(ack.split(':')[1])
                     if ack_sequence_number == 1 - self.sequence_number:
@@ -62,10 +63,13 @@ class ChatClientSender:
                         break
                     else:
                         print("Wrong ACK received. Retransmitting segment:", self.sequence_number)
-                        self.send_data(chunk.decode(), receive_filename)
+                        self.send_data(chunk, receive_filename)
                 except socket.timeout:
                     print("Timeout, retransmitting segment:", self.sequence_number)
-                    self.send_data(chunk.decode(), receive_filename)
+                    self.send_data(chunk, receive_filename)
+                except UnicodeDecodeError:
+                    print("Corrupted ACK received. Retransmitting segment:", self.sequence_number)
+                    self.send_data(chunk, receive_filename)
 
         print("File transmission complete.")
 
