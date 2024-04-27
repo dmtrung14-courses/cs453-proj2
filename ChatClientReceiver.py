@@ -55,25 +55,28 @@ class ChatClientReceiver:
         data = response.decode()
 
         if len(data) == 0:
-            return
+            return -1
 
         if seq_num != self.sequence_number or checksum != self.calculate_checksum(data):
             print("Either sequence number or checksum is incorrect. Ignoring the segment.")
             self.send_ack()
-            return
+            return 0 
         
         self.sequence_number = 1 - self.sequence_number
         if receive_file == sys.stdout:
             print(data)
-            return
+            return 0
         with open(receive_file, 'a') as file:
             file.write(data)
         self.send_ack()
-
+        return 0
+    
     def receive_file(self):
         while True:
             try:
-                self.receive_data()
+                a = self.receive_data()
+                if a == -1:
+                    break
                 self.sock.settimeout(3)
             except socket.timeout:
                 break
