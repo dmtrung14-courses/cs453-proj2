@@ -36,15 +36,15 @@ class ChatClientReceiver:
         while True:
             try:
                 segment, _ = self.sock.recvfrom(2048)
-                with open("received.txt", 'a') as file:
-                    file.write((segment + b"\n").decode())
-                    file.write(header + "\n" if header else "")
-                    file.write(seq_num + "\n" if seq_num else "")
-                    file.write(checksum + "\n" if checksum else "")
+                # with open("received.txt", 'a') as file:
+                #     file.write((segment + b"\n").decode())
                 header_sep = segment.index(b"\n\n")
+                # handle quit:
                 if not header:
                     header = segment[:header_sep].decode()
                     seq_num = int(header.split("\n")[0].split(":")[1])
+                    if seq_num == -1:
+                        return -1
                     checksum = header.split("\n")[1].split(":")[1]
                     receive_file = header.split("\n")[2].split(":")[1]
                 response += segment[header_sep+2:]
@@ -54,11 +54,8 @@ class ChatClientReceiver:
         # TODO: handle parsing response
         data = response.decode()
 
-        if len(data) == 0:
-            return -1
-
         if seq_num != self.sequence_number or checksum != self.calculate_checksum(data):
-            print("Either sequence number or checksum is incorrect. Ignoring the segment.")
+            print(f"Expected sequence number: {self.sequence_number}, received: {seq_num}\n Expected checksum: {self.calculate_checksum(data)}, received: {checksum}\n")
             self.send_ack()
             return 0 
         
