@@ -29,39 +29,49 @@ class ChatClientReceiver:
 
     def receive_data(self):
         response = b""
+        header = None
+        seq_num = None
+        checksum = None
+        receive_file = None
         while True:
             try:
                 segment, _ = self.sock.recvfrom(2048)
-                response += segment
+                with open("received.txt", 'a') as file:
+                    file.write((segment + b"\n").decode())
+                    file.write(header + "\n" if header else "")
+                    file.write(seq_num + "\n" if seq_num else "")
+                    file.write(checksum + "\n" if checksum else "")
+                header_sep = segment.index(b"\n\n")
+                if not header:
+                    header = segment[:header_sep].decode()
+                    seq_num = int(header.split("\n")[0].split(":")[1])
+                    checksum = header.split("\n")[1].split(":")[1]
+                    receive_file = header.split("\n")[2].split(":")[1]
+                response += segment[header_sep+2:]
                 self.sock.settimeout(1)
             except socket.timeout:
                 break
         # TODO: handle parsing response
-        header_sep = response.index(b"\n\n")
-        header = response[:header_sep].decode()
-        
-        seq_num = header.split("\n")[0].split(":")[1]
-        checksum = header.split("\n")[1].split(":")[1]
-        receive_file = header.split("\n")[2].split(":")[1]
-        
-        data = response[header_sep+2:].decode()
+        data = response.decode()
 
         if seq_num != self.sequence_number or checksum != self.calculate_checksum(data):
+            # if the data is corrupt or resend, then ack the previous segment
+            print("Got here, some error found!")
             self.send_ack()
             return
         self.sequence_number = 1 - self.sequence_number
         if receive_file == sys.stdout:
             print(data)
             return
-        with open(receive_file, 'a') as receive_file:
-            receive_file.write(data)
+        with open(receive_file, 'a') as file:
+            file.write(data)
         self.send_ack()
 
     def receive_file(self):
         while True:
             try:
                 self.receive_data()
-                self.sock.settimeout(5)
+                self.sock.settimeout(3)
             except socket.timeout:
                 break
     def send_segment(self, segment):

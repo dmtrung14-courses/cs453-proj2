@@ -36,6 +36,7 @@ class ChatClientSender:
 
     def send_data(self, data, receive_filename):
         checksum = self.calculate_checksum(data)
+        print(type(checksum))
         segment = f"SEQ_NUM:{self.sequence_number}\nCHECKSUM:{checksum}\nRECV_FILE:{receive_filename}\nBYTES:2000\n\n{data}"  
         self.send_segment(segment)
 
