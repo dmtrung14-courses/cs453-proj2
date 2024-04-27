@@ -45,9 +45,12 @@ class ChatClientSender:
     def send_file(self, filename, receive_filename):
         with open(filename, 'r') as file:
             data = file.read()
-        chunk_size = 500
-        chunks = [data[i:i+chunk_size] for i in range(0, len(data), chunk_size)]
-        for chunk in chunks:
+        counter = 0
+        while counter < len(data) - 1:
+            chunk = data[counter]
+            while len(chunk.encode()) < 2000 - len(f"SEQ_NUM:{self.sequence_number}\nCHECKSUM:{self.calculate_checksum(chunk)}\nRECV_FILE:{receive_filename}\nBYTES:2000\n\n".encode()) and counter < len(data) - 1:
+                counter += 1
+                chunk += data[counter]
             self.send_data(chunk, receive_filename)
             while True:
                 try:
@@ -67,8 +70,11 @@ class ChatClientSender:
                 except socket.timeout:
                     print("Timeout, retransmitting segment:", self.sequence_number)
                     self.send_data(chunk, receive_filename)
-                except UnicodeDecodeError:
+                except (UnicodeDecodeError, ValueError):
                     print("Corrupted ACK received. Retransmitting segment:", self.sequence_number)
+                    self.send_data(chunk, receive_filename)
+                except IndexError:
+                    print("Index out of bounds. Retransmitting segment:", self.sequence_number)
                     self.send_data(chunk, receive_filename)
 
         print("File transmission complete.")

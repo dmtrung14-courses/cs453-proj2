@@ -44,7 +44,7 @@ RFC 6298          Computing TCP's Retransmission Timer         June 2011
 
    (2.1) Until a round-trip time (RTT) measurement has been made for a
          segment sent between the sender and receiver, the sender SHOULD
-         set RTO <- 1 second, though the "backing off" on repeated
+         set RTO <-  1 second, though the "backing off" on repeated
          retransmission discussed in (5.5) still applies.
 
          Note that the previous version of this document used an initial
@@ -95,7 +95,7 @@ Paxson, et al.               Standards Track                    [Page 3]
 RFC 6298          Computing TCP's Retransmission Timer         June 2011
 
 
-         at the same time acknowledging that at some future point,
+          at the same time acknowledging that at some future point,
          research may show that a smaller minimum RTO is acceptable or
          superior.
 
@@ -134,7 +134,7 @@ RFC 6298          Computing TCP's Retransmission Timer         June 2011
    There is no requirement for the clock granularity G used for
    computing RTT measurements and the different state variables.
    However, if the K*RTTVAR term in the RTO calculation equals zero, the
-   variance term MUST be rounded to G seconds (i.e., use the equation
+   vvariance term MUST be rounded to G seconds (i.e., use the equation
    given in step 2.3).
 
        RTO <- SRTT + max (G, K*RTTVAR)
@@ -186,7 +186,7 @@ RFC 6298          Computing TCP's Retransmission Timer         June 2011
          an upper bound to this doubling operation.
 
    (5.6) Start the retransmission timer, such that it expires after RTO
-         seconds (for the value of RTO after the doubling operation
+         seconds (for the  value of RTO after the doubling operation
          outlined in 5.5).
 
    (5.7) If the timer expires awaiting the ACK of a SYN segment and the
@@ -231,7 +231,7 @@ RFC 6298          Computing TCP's Retransmission Timer         June 2011
    what an attacker might gain from such an attack that could cause more
    damage than simply discarding some of the TCP connection's packets.
 
-   The Internet, to a considerable degree, relies on the correct
+   The Innternet, to a considerable degree, relies on the correct
    implementation of the RTO algorithm (as well as those described in
    RFC 5681) in order to preserve network stability and avoid congestion
    collapse.  An attacker could cause TCP endpoints to respond more

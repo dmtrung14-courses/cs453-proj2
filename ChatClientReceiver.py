@@ -51,10 +51,11 @@ class ChatClientReceiver:
                 self.sock.settimeout(1)
             except socket.timeout:
                 break
-            except UnicodeDecodeError:
+            except (UnicodeDecodeError, ValueError):
             # possibly corrupted, so we drop the file and request retransmission
                 self.send_ack()
                 return 0
+            
         # TODO: handle parsing response
         try:
             data = response.decode()
