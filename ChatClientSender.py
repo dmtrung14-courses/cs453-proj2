@@ -12,7 +12,6 @@ class ChatClientSender:
         self.receiver_name = "Batwoman"
         self.sequence_number = 0
 
-
         # socket
         self.sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
     
@@ -21,16 +20,14 @@ class ChatClientSender:
         response, _ = self.sock.recvfrom(1024)
         print(response.decode())
 
-
     def relay(self):
         self.sock.sendto(f"CONN {self.receiver_name}".encode(), (self.server_address, self.server_port))
         response, _ = self.sock.recvfrom(1024)
         print(response.decode())
 
-
     def calculate_checksum(self, data):
         return hashlib.md5(data.encode()).hexdigest()
-
+    
     def chunk_data(self, data, receive_filename):
         chunks = []
         counter = 0
@@ -42,7 +39,7 @@ class ChatClientSender:
             chunks.append(chunk)
         return chunks
 
-    def send_segment(self, segment, encoded = False):
+    def send_segment(self, segment, encoded=False):
         if encoded:
             self.sock.sendto(segment, (self.server_address, self.server_port))
         else:
@@ -77,9 +74,10 @@ class ChatClientSender:
                 except socket.timeout:
                     print("Timeout, retransmitting segment:", self.sequence_number)
                     self.send_data(chunk, receive_filename)
-                # except (UnicodeDecodeError, ValueError, IndexError):
-                #     print("Corrupted ACK received. Retransmitting segment:", self.sequence_number)
-                #     self.send_data(chunk, receive_filename)
+                except (UnicodeDecodeError, ValueError, IndexError) as e:
+                    print("An error occurred:", e)
+                    print("Retransmitting segment:", self.sequence_number)
+                    self.send_data(chunk, receive_filename)
 
         print("File transmission complete.")
 
@@ -119,9 +117,6 @@ def main():
     end_time = time.time()
     run_time = end_time - start_time
     print("Transmitted the file in: ", run_time, "s")
+
 if __name__ == "__main__":
     main()
-
-    # command for copy and paste:
-    # python ChatClientSender.py -s date.cs.umass.edu -p 8888 -t file1.txt recv_file1.txt
-    # python ChatClientSender.py -s date.cs.umass.edu -p 8888 -t file2.txt recv_file2.txt

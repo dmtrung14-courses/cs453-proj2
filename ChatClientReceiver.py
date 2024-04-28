@@ -54,10 +54,10 @@ class ChatClientReceiver:
                 self.sock.settimeout(1)
             except socket.timeout:
                 break
-            # except (UnicodeDecodeError, ValueError, IndexError):
-            # # possibly corrupted, so we drop the file and request retransmission
-            #     self.send_ack()
-            #     return 0
+            except (UnicodeDecodeError, ValueError, IndexError):
+                # possibly corrupted, so we drop the file and request retransmission
+                self.send_ack()
+                return 0
             
         # TODO: handle parsing response
         try:
@@ -96,6 +96,7 @@ class ChatClientReceiver:
                 self.sock.settimeout(1)
             except socket.timeout:
                 break
+    
     def send_segment(self, segment):
         self.sock.sendto(segment.encode(), (self.server_address, self.server_port))
 
@@ -117,12 +118,12 @@ def main():
     sender.identify()
     sender.relay()
     
-    # TODO: something is wrong here
-    sender.receive_file()
+    try:
+        sender.receive_file()
+    except Exception as e:
+        print("An error occurred:", e)
+    
     sender.close_connection()
 
 if __name__ == "__main__":
     main()
-
-    # command for copy and paste
-    # python ChatClientReceiver.py -s date.cs.umass.edu -p 8888
