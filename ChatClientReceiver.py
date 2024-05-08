@@ -1,7 +1,9 @@
+
 import socket
 import hashlib
 import time
 import sys
+import os
 
 class ChatClientReceiver:
     def __init__(self, server_address, server_port):
@@ -11,9 +13,20 @@ class ChatClientReceiver:
         self.sender_name = "Batwoman"
         self.receiver_name = "Superman"
         self.sequence_number = 0
-        self.verbose = True
+        self.verbose = False
+        self.data = [b"" for _ in range(10**5)]
+        self.recv_file = None
         # socket
         self.sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+
+    def clear_terminal(self):
+        """
+        Clears the terminal screen on different operating systems.
+        """
+        if os.name == 'nt':  # Windows
+            os.system('cls')
+        else:  # Unix/Linux/macOS
+            os.system('clear')
 
     def identify(self):
         self.sock.sendto(f"NAME {self.sender_name}".encode(), (self.server_address, self.server_port))
@@ -26,7 +39,7 @@ class ChatClientReceiver:
         if self.verbose: print(response.decode())
 
     def calculate_checksum(self, data):
-        return hashlib.md5(data.encode()).hexdigest()
+        return hashlib.md5(data).hexdigest()
 
     def receive_data(self):
         response = b""
@@ -34,7 +47,8 @@ class ChatClientReceiver:
         seq_num = None
         checksum = None
         receive_file = None
-        while True:
+        offset = None
+        while len(response) == 0:
             try:
                 segment, _ = self.sock.recvfrom(2048)
                 if len(segment) == 0:
@@ -50,41 +64,39 @@ class ChatClientReceiver:
                         return -1
                     checksum = header.split("\n")[1].split(":")[1]
                     receive_file = header.split("\n")[2].split(":")[1]
+                    if self.recv_file is None: self.recv_file = receive_file
+                    offset = int(header.split("\n")[3].split(":")[1])
                 response += segment[header_sep+2:]
                 self.sock.settimeout(1)
             except socket.timeout:
                 break
             except (UnicodeDecodeError, ValueError, IndexError):
                 # possibly corrupted, so we drop the file and request retransmission
-                self.send_ack()
                 return 0
             
         # TODO: handle parsing response
         try:
-            data = response.decode()
+            data = response
             if len(data) == 0:
                 return 0
         except UnicodeDecodeError:
             # possibly corrupted, so we drop the file and request retransmission
-            self.send_ack()
             return 0
 
-        if seq_num != self.sequence_number or checksum != self.calculate_checksum(data):
-            if seq_num != self.sequence_number and self.verbose:
-                print(f"Expected sequence number: {self.sequence_number}, received: {seq_num}")
-            if checksum != self.calculate_checksum(data) and self.verbose:
-                print(f"Expected checksum: {self.calculate_checksum(data)}, received: {checksum}")
-            self.send_ack()
+        if checksum != self.calculate_checksum(data):
+            if self.verbose:
+                print(f"Expected checksum: {self.calculate_checksum(data)}, received: {checksum} for segment {seq_num}")
             return 0 
         
-        self.sequence_number = 1 - self.sequence_number
-        if receive_file == sys.stdout:
-            print(data)
-            return
+        self.data[seq_num] = data
+        if receive_file == "sys.stdout":
+            self.clear_terminal()
+            print(b"".join(self.data).decode())
         else:
-            with open(receive_file, 'a') as file:
-                file.write(data)
-        self.send_ack()
+            with open(self.recv_file, 'wb') as file:
+                file.write(b"".join(self.data))
+        self.send_ack(seq_num)
+        if self.verbose: print(f"Sent ACK for segment: {seq_num}")
         return 0
     
     def receive_file(self):
@@ -100,9 +112,16 @@ class ChatClientReceiver:
     def send_segment(self, segment):
         self.sock.sendto(segment.encode(), (self.server_address, self.server_port))
 
-    def send_ack(self):
-        segment = f"ACK:{self.sequence_number}"
+    def send_ack(self, seq_num):
+        segment = f"ACK:{seq_num}\nCHECKSUM:{self.calculate_checksum(f'{seq_num}'.encode())}\n"
         self.send_segment(segment)
+
+    def write_file(self):
+        if self.recv_file == "sys.stdout":
+            print(b"".join(self.data).decode())
+        else:
+            with open(self.recv_file, 'wb') as file:
+                file.write(b"".join(self.data))
 
     def close_connection(self):
         self.sock.close()
@@ -122,8 +141,9 @@ def main():
         sender.receive_file()
     except Exception as e:
         print("An error occurred:", e)
-    
+    # sender.write_file()
     sender.close_connection()
 
 if __name__ == "__main__":
     main()
+    # python ChatClientReceiver.py -s date.cs.umass.edu -p 8888
