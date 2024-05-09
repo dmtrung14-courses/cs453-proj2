@@ -171,3 +171,5 @@ if __name__ == "__main__":
 # python ChatClientSender.py -s date.cs.umass.edu -p 8888 -t file2.txt recv_file2.txt
 # python ChatClientSender.py -s date.cs.umass.edu -p 8888 -t file3.txt recv_file3.txt
 # python ChatClientSender.py -s date.cs.umass.edu -p 8888 -t test.png recv_test.png
+# cat test.png | python ChatClientSender.py -s date.cs.umass.edu -p 8888
+# cat file3.txt | python ChatClientSender.py -s date.cs.umass.edu -p 8888

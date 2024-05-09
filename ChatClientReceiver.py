@@ -1,4 +1,5 @@
 
+
 import socket
 import hashlib
 import time
@@ -89,10 +90,11 @@ class ChatClientReceiver:
             return 0 
         
         self.data[seq_num] = data
-        if receive_file == "sys.stdout":
-            self.clear_terminal()
-            print(b"".join(self.data).decode())
-        else:
+        if receive_file != "sys.stdout":
+        #     self.clear_terminal()
+        #     sys.stdout.buffer.write(data)
+        #     sys.stdout.buffer.flush()
+        # else:
             with open(self.recv_file, 'wb') as file:
                 file.write(b"".join(self.data))
         self.send_ack(seq_num)
@@ -118,10 +120,8 @@ class ChatClientReceiver:
 
     def write_file(self):
         if self.recv_file == "sys.stdout":
-            print(b"".join(self.data).decode())
-        else:
-            with open(self.recv_file, 'wb') as file:
-                file.write(b"".join(self.data))
+            sys.stdout.buffer.write(b"".join(self.data))
+            sys.stdout.buffer.flush()
 
     def close_connection(self):
         self.sock.close()
@@ -141,9 +141,11 @@ def main():
         sender.receive_file()
     except Exception as e:
         print("An error occurred:", e)
-    # sender.write_file()
+    sender.write_file()
     sender.close_connection()
 
 if __name__ == "__main__":
     main()
     # python ChatClientReceiver.py -s date.cs.umass.edu -p 8888
+    # python ChatClientReceiver.py -s date.cs.umass.edu -p 8888 | Out-File recv_test.png
+    # python ChatClientReceiver.py -s date.cs.umass.edu -p 8888 | Out-File recv_file3.txt
