@@ -3,7 +3,7 @@
 ![Banner](./assets/banner.png)
 
 
-This repository provides the source code to the Transmission Control Protocol that I developed in [UMass Amherst CS453: Computer Network](https://sites.google.com/view/cs43-s22/overview?authuser=0).
+This repository provides the source code to the Transmission Control Protocol that I developed in [UMass Amherst CS453: Computer Network](https://sites.google.com/view/cs43-s22/overview?authuser=0). The full blog post can be found at [dmtrung.com](https://dmtrung.com/blogs/network_programming.html)
 
 The project requires a fast and resilient sender for TCP.  Unlike [the first project](https://bitbucket.org/compnetworks/csp2p-downloader/src/master/README.md), there is no time limit for the second project, except Gradescope runtime limit. Howver, accuracy will be heavily evaluated using 16 tests of incrementing difficulty and noisy levels, with corruption rate `> 0.5` for the last few tests. The real numbers were not disclosed. By using the Go-Back-N (GBN) protocol and dynamically adjusting the Recovery Time Objective (RTO), I again achieved the best score of the class (the first time was in [cs453-project1](https://github.com/dmtrung14-courses/umass-cs453)). Kudos to my fellow teammate [Sagarika](https://github.com/sagarikasonni)!
 
